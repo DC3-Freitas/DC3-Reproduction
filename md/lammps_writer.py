@@ -24,7 +24,7 @@ class LammpsInput:
     P: float = 0             # System pressure.
     damp_T: float = 0.1      # Thermostat damping [ps].
     damp_P: float = 1.0      # Barostat damping [ps].
-    RANDOM: int = 0          # Random number generator seed.
+    RANDOM: int = 42         # Random number generator seed.
 
     # === Barostat and thermostat parameters ===
     relaxation_time: float = 0.1
@@ -33,8 +33,7 @@ class LammpsInput:
 
     # === Experiment specific parameters ===
     melting_point: float = 1811                             # Melting point [K].
-    sim_temperature_fraction: float = 1.0                   # Fraction of melting point to simulate at
-    T: float = melting_point * sim_temperature_fraction     # Simulation temperature [K].
+    sim_temperature_fraction: float = 0.1                   # Fraction of melting point to simulate at
     exp_name: str = "exp"                                   # Experiment name.
 
     # === Lattice and interatomic potentials ===
@@ -44,17 +43,15 @@ class LammpsInput:
     pair_coeff: str = "none"
     mass: float = 1.0
 
+    def __post_init__(self):
+        self.T = round(self.melting_point * self.sim_temperature_fraction, 5) # Simulation temperature [K].
+
     def __str__(self):
-        final = ""
-        # # create simulation variable string
-        # final += "#--------------------------- Simulation variables -----------------------------#\n"
-        # for key, value in self.__dict__.items():
-        #     if type(value) in [int, float]:
-        #         final += f"variable {key} equal {value}\n"
-        final += dedent(f"""
+        final = dedent(f"""
             #---------------------------- Atomic setup ------------------------------------#
             units            metal
             timestep         {self.dt}
+            boundary         p p p
             lattice          {self.lattice_type} {self.lattice_parameter}
             region           sim_box block 0 {self.n} 0 {self.n} 0 {self.n}
             create_box       1 sim_box
@@ -62,9 +59,10 @@ class LammpsInput:
 
             pair_style       {self.pair_style}     # interatomic potential (Lennard-Jones, EAM, etc.)
             pair_coeff       * * {self.pair_coeff} # interatomic potential parameters (ex. eam.alloy Cu_u3.eam)
+            pair_modify      tail yes
             neigh_modify     delay 0               # neighbor list update frequency (0 = every timestep)
             mass             1 {self.mass}         # atomic mass
-            rnd              equal round(random(0,999999,{self.RANDOM}))
+            variable         rnd equal round(random(0,999999,{self.RANDOM}))
             """)
 
         final += dedent(f"""
@@ -78,8 +76,7 @@ class LammpsInput:
 
         final += dedent(f"""
             #----------------------------- Run simulation ---------------------------------#
-            dump             d1 all custom/gz {self.dt_d} data/{self.exp_name}/dump_{self.sim_temperature_fraction}_*.gz
-                                & id type x y z                             # snapshots
+            dump             d1 all custom {self.dt_d} data/{self.exp_name}/dump_{self.sim_temperature_fraction}.gz id type x y z                             # snapshots
             run              {self.t}
             undump           d1
             min_modify       line forcezero
