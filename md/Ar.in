@@ -23,9 +23,9 @@ fix              f3 all temp/csvr 8.38 8.38 0.1 ${rnd} # thermostat
 run              10000                                               # equilibriation run
 
 #----------------------------- Run simulation ---------------------------------#
-dump             d1 all custom 10000 data/Ar/dump_0.1_at2.gz id type x y z                             # snapshots
+dump             d1 all custom 10000 data/Ar/dump_0.1.gz id type x y z                             # snapshots
 run              90000
-#undump           d1
+undump           d1
 min_modify       line forcezero
 minimize         0 0 100000 100000                              # minimize energy
 write_dump       all custom data/Ar/dump_0.1_relaxed.gz id type x y z
